@@ -134,9 +134,11 @@ echo "CFLAGS=" >> build_config.mk
 echo "CFLAGS = -DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare" >> build_config.mk
 echo "CFLAGS += ${PLATFORM_CFLAGS}" >> build_config.mk
 echo "CFLAGS += -I \"$LEVELDB_PATH/include\"" >> build_config.mk
+echo "CFLAGS += -I \"$LEVELDB_PATH\"" >> build_config.mk
 
 echo "CLIBS=" >> build_config.mk
 echo "CLIBS += \"$LEVELDB_PATH/libleveldb.a\"" >> build_config.mk
+echo "CLIBS += \"$LEVELDB_PATH/libzstd.a\"" >> build_config.mk
 echo "CLIBS += \"$SNAPPY_PATH/.libs/libsnappy.a\"" >> build_config.mk
 
 case "$TARGET_OS" in

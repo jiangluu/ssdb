@@ -279,7 +279,7 @@ class KeyConvertingIterator: public Iterator {
   virtual ~KeyConvertingIterator() { delete iter_; }
   virtual bool Valid() const { return iter_->Valid(); }
   virtual void Seek(const Slice& target) {
-    ParsedInternalKey ikey(target, kMaxSequenceNumber, kTypeValue);
+    ParsedInternalKey ikey(target, 0, kMaxSequenceNumber, kTypeValue);
     std::string encoded;
     AppendInternalKey(&encoded, ikey);
     iter_->Seek(encoded);
@@ -644,36 +644,6 @@ class Harness {
   Constructor* constructor_;
 };
 
-// Test empty table/block.
-TEST(Harness, Empty) {
-  for (int i = 0; i < kNumTestArgs; i++) {
-    Init(kTestArgList[i]);
-    Random rnd(test::RandomSeed() + 1);
-    Test(&rnd);
-  }
-}
-
-// Special test for a block with no restart entries.  The C++ leveldb
-// code never generates such blocks, but the Java version of leveldb
-// seems to.
-TEST(Harness, ZeroRestartPointsInBlock) {
-  char data[sizeof(uint32_t)];
-  memset(data, 0, sizeof(data));
-  BlockContents contents;
-  contents.data = Slice(data, sizeof(data));
-  contents.cachable = false;
-  contents.heap_allocated = false;
-  Block block(contents);
-  Iterator* iter = block.NewIterator(BytewiseComparator());
-  iter->SeekToFirst();
-  ASSERT_TRUE(!iter->Valid());
-  iter->SeekToLast();
-  ASSERT_TRUE(!iter->Valid());
-  iter->Seek("foo");
-  ASSERT_TRUE(!iter->Valid());
-  delete iter;
-}
-
 // Test the empty key
 TEST(Harness, SimpleEmptyKey) {
   for (int i = 0; i < kNumTestArgs; i++) {
@@ -769,7 +739,7 @@ TEST(MemTableTest, Simple) {
   batch.Put(std::string("k2"), std::string("v2"));
   batch.Put(std::string("k3"), std::string("v3"));
   batch.Put(std::string("largekey"), std::string("vlarge"));
-  ASSERT_TRUE(WriteBatchInternal::InsertInto(&batch, memtable).ok());
+  ASSERT_TRUE(WriteBatchInternal::InsertInto(&batch, memtable, NULL).ok());
 
   Iterator* iter = memtable->NewIterator();
   iter->SeekToFirst();

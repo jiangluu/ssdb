@@ -55,15 +55,14 @@ class FileState {
     }
     const uint64_t available = size_ - offset;
     if (n > available) {
-      n = static_cast<size_t>(available);
+      n = available;
     }
     if (n == 0) {
       *result = Slice();
       return Status::OK();
     }
 
-    assert(offset / kBlockSize <= SIZE_MAX);
-    size_t block = static_cast<size_t>(offset / kBlockSize);
+    size_t block = offset / kBlockSize;
     size_t block_offset = offset % kBlockSize;
 
     if (n <= kBlockSize - block_offset) {
@@ -168,7 +167,7 @@ class SequentialFileImpl : public SequentialFile {
     if (pos_ > file_->Size()) {
       return Status::IOError("pos_ > file_->Size()");
     }
-    const uint64_t available = file_->Size() - pos_;
+    const size_t available = file_->Size() - pos_;
     if (n > available) {
       n = available;
     }
@@ -178,7 +177,7 @@ class SequentialFileImpl : public SequentialFile {
 
  private:
   FileState* file_;
-  uint64_t pos_;
+  size_t pos_;
 };
 
 class RandomAccessFileImpl : public RandomAccessFile {
@@ -222,11 +221,6 @@ class WritableFileImpl : public WritableFile {
   FileState* file_;
 };
 
-class NoOpLogger : public Logger {
- public:
-  virtual void Logv(const char* format, va_list ap) { }
-};
-
 class InMemoryEnv : public EnvWrapper {
  public:
   explicit InMemoryEnv(Env* base_env) : EnvWrapper(base_env) { }
@@ -263,7 +257,7 @@ class InMemoryEnv : public EnvWrapper {
   }
 
   virtual Status NewWritableFile(const std::string& fname,
-                                 WritableFile** result) {
+                                 WritableFile** result, size_t) {
     MutexLock lock(&mutex_);
     if (file_map_.find(fname) != file_map_.end()) {
       DeleteFileInternal(fname);
@@ -361,11 +355,6 @@ class InMemoryEnv : public EnvWrapper {
 
   virtual Status GetTestDirectory(std::string* path) {
     *path = "/test";
-    return Status::OK();
-  }
-
-  virtual Status NewLogger(const std::string& fname, Logger** result) {
-    *result = new NoOpLogger;
     return Status::OK();
   }
 

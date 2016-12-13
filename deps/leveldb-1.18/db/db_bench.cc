@@ -128,7 +128,7 @@ class RandomGenerator {
     pos_ = 0;
   }
 
-  Slice Generate(size_t len) {
+  Slice Generate(int len) {
     if (pos_ + len > data_.size()) {
       pos_ = 0;
       assert(len < data_.size());
@@ -139,11 +139,11 @@ class RandomGenerator {
 };
 
 static Slice TrimSpace(Slice s) {
-  size_t start = 0;
+  int start = 0;
   while (start < s.size() && isspace(s[start])) {
     start++;
   }
-  size_t limit = s.size();
+  int limit = s.size();
   while (limit > start && isspace(s[limit-1])) {
     limit--;
   }
@@ -399,7 +399,7 @@ class Benchmark {
     heap_counter_(0) {
     std::vector<std::string> files;
     Env::Default()->GetChildren(FLAGS_db, &files);
-    for (size_t i = 0; i < files.size(); i++) {
+    for (int i = 0; i < files.size(); i++) {
       if (Slice(files[i]).starts_with("heap-")) {
         Env::Default()->DeleteFile(std::string(FLAGS_db) + "/" + files[i]);
       }
@@ -431,7 +431,7 @@ class Benchmark {
         benchmarks = sep + 1;
       }
 
-      // Reset parameters that may be overridden below
+      // Reset parameters that may be overriddden bwlow
       num_ = FLAGS_num;
       reads_ = (FLAGS_reads < 0 ? FLAGS_num : FLAGS_reads);
       value_size_ = FLAGS_value_size;
@@ -534,6 +534,7 @@ class Benchmark {
     SharedState* shared;
     ThreadState* thread;
     void (Benchmark::*method)(ThreadState*);
+    pthread_t thread_id;
   };
 
   static void ThreadBody(void* v) {
@@ -579,7 +580,8 @@ class Benchmark {
       arg[i].shared = &shared;
       arg[i].thread = new ThreadState(i);
       arg[i].thread->shared = &shared;
-      Env::Default()->StartThread(ThreadBody, &arg[i]);
+      arg[i].thread_id=Env::Default()->StartThread(ThreadBody, &arg[i]);
+      pthread_detach(arg[i].thread_id);
     }
 
     shared.mu.Lock();
@@ -693,7 +695,6 @@ class Benchmark {
     options.create_if_missing = !FLAGS_use_existing_db;
     options.block_cache = cache_;
     options.write_buffer_size = FLAGS_write_buffer_size;
-    options.max_open_files = FLAGS_open_files;
     options.filter_policy = filter_policy_;
     Status s = DB::Open(options, FLAGS_db, &db_);
     if (!s.ok()) {
@@ -811,6 +812,7 @@ class Benchmark {
 
   void SeekRandom(ThreadState* thread) {
     ReadOptions options;
+    std::string value;
     int found = 0;
     for (int i = 0; i < reads_; i++) {
       Iterator* iter = db_->NewIterator(options);
@@ -906,7 +908,7 @@ class Benchmark {
     char fname[100];
     snprintf(fname, sizeof(fname), "%s/heap-%04d", FLAGS_db, ++heap_counter_);
     WritableFile* file;
-    Status s = Env::Default()->NewWritableFile(fname, &file);
+    Status s = Env::Default()->NewWritableFile(fname, &file, 2<<20);
     if (!s.ok()) {
       fprintf(stderr, "%s\n", s.ToString().c_str());
       return;
@@ -972,7 +974,13 @@ int main(int argc, char** argv) {
       FLAGS_db = default_db_path.c_str();
   }
 
-  leveldb::Benchmark benchmark;
-  benchmark.Run();
+  // benchmark class needs to destruct before Shutdown call
+  {
+      leveldb::Benchmark benchmark;
+      benchmark.Run();
+  }
+
+  leveldb::Env::Shutdown();
+
   return 0;
 }
