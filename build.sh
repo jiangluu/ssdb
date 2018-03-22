@@ -1,7 +1,7 @@
 #!/bin/sh
 BASE_DIR=`pwd`
 JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-4.1.0"
-LEVELDB_PATH="$BASE_DIR/deps/leveldb-1.18"
+LEVELDB_PATH="$BASE_DIR/deps/leveldb-2.0.31"
 SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.0"
 
 # dependency check
