@@ -9,6 +9,7 @@
 #include "table/block.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
+#include "zstd.h"
 
 namespace leveldb {
 
@@ -133,6 +134,33 @@ Status ReadBlock(RandomAccessFile* file,
       result->cachable = true;
       break;
     }
+	
+	case kZstdCompression:
+          {
+          #define _LEN_OFFSET 4
+            size_t ulength = DecodeFixed32(data);
+            char*  ubuf = new char[ulength];
+
+            size_t const dSize = ZSTD_decompress(ubuf, ulength, data+_LEN_OFFSET, n-_LEN_OFFSET);
+            if (ZSTD_isError(dSize)) {
+              //fprintf(stderr, "error Zstd decompressing %s \n", ZSTD_getErrorName(dSize));
+              s=Status::Corruption("error Zstd decompressing");
+            }
+            else if(dSize != ulength){
+              s=Status::Corruption("corrupted Zstd compressed block");
+            }
+
+              if (s.ok())
+              {
+                  delete[] buf;
+                  buf=NULL;
+                  result->data = Slice(ubuf, ulength);
+                  result->heap_allocated = true;
+                  result->cachable = true;
+              }   // if
+            break;
+          }
+	
     default:
       delete[] buf;
       return Status::Corruption("bad block type");

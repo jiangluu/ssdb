@@ -149,7 +149,7 @@ case "$TARGET_OS" in
 esac
 
 echo "CLIBS += ${PLATFORM_CLIBS}" >> build_config.mk
-
+echo "CLIBS += -l zstd -L ../deps" >> build_config.mk
 
 if test -z "$TMPDIR"; then
     TMPDIR=/tmp

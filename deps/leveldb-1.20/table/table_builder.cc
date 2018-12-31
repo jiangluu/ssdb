@@ -14,6 +14,7 @@
 #include "table/format.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
+#include "zstd.h"
 
 namespace leveldb {
 
@@ -166,6 +167,29 @@ void TableBuilder::WriteBlock(BlockBuilder* block, BlockHandle* handle) {
       }
       break;
     }
+	
+	case kZstdCompression: {
+      std::string* compressed = &r->compressed_output;
+      size_t const cBuffSize = ZSTD_compressBound(raw.size());
+      #define _LEN_OFFSET 4
+      if(compressed->size() < cBuffSize+_LEN_OFFSET){
+          compressed->resize(cBuffSize+_LEN_OFFSET);
+      }
+      size_t const cSize = ZSTD_compress((void*)(compressed->c_str()+_LEN_OFFSET), compressed->size()-_LEN_OFFSET, raw.data(), raw.size(), 1);
+      if (0 == ZSTD_isError(cSize)) {
+          EncodeFixed32((char *)compressed->data(), raw.size());
+          compressed->resize(cSize+_LEN_OFFSET);
+          block_contents = *compressed;
+      }
+      else{
+        fprintf(stderr, "error Zstd compressing %s \n", ZSTD_getErrorName(cSize));
+        block_contents = raw;
+        type = kNoCompression;
+      }
+	  
+	  break;
+	}
+      
   }
   WriteRawBlock(block_contents, type, handle);
   r->compressed_output.clear();

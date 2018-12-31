@@ -46,7 +46,7 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 	ssdb->options.write_buffer_size = opt.write_buffer_size * 1024 * 1024;
 	ssdb->options.compaction_speed = opt.compaction_speed;
 	if(opt.compression == "yes"){
-		ssdb->options.compression = leveldb::kSnappyCompression;
+		ssdb->options.compression = leveldb::kZstdCompression;
 	}else{
 		ssdb->options.compression = leveldb::kNoCompression;
 	}
