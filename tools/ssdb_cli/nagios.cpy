@@ -48,6 +48,7 @@ function run(link, cli_args){
 		# - does total_calls is growing
 	}catch(Exception e){
 		sys.stderr.write(str(e) + '\n');
+		exit(2);
 	}
 	#sys.stderr.write('exit\n');
 	exit(0);
@@ -116,16 +117,20 @@ function nagios_replication(resp){
 }
 
 function nagios_write_read(link){
-	test_key = 'write_read_test_key';
-	resp = link.request('set', ['nagiostest', test_key]);
+	import datetime;
+	test_date = datetime.datetime.now().strftime("%Y%m%d%H%M");
+	test_key = 'write_read_test_key' + str(test_date);
+	resp = link.request('set', [test_key, test_key]);
 	#print resp;
-	resp = link.request('get', ['nagiostest']);
+	resp = link.request('get', [test_key]);
 	#print resp;
+	resp_del = link.request('del', [test_key]);
+	#print resp_del;
 	if (resp.data == test_key){
-		print 'OK: ' + resp.data;
+		print 'OK: ' + str(resp.data);
 		exit(0);
 	}else{
-		print 'WRITE_READ failed: ' + resp.data;
+		print 'WRITE_READ failed: ' + str(resp.data);
 		exit(2);
 	}
 }

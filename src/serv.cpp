@@ -62,6 +62,8 @@ DEF_PROC(zrank);
 DEF_PROC(zrrank);
 DEF_PROC(zrange);
 DEF_PROC(zrrange);
+DEF_PROC(redis_zrange);
+DEF_PROC(redis_zrrange);
 DEF_PROC(zsize);
 DEF_PROC(zget);
 DEF_PROC(zset);
@@ -187,6 +189,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(zrrank, "rt");
 	REG_PROC(zrange, "rt");
 	REG_PROC(zrrange, "rt");
+	REG_PROC(redis_zrange, "rt");
+	REG_PROC(redis_zrrange, "rt");
 	REG_PROC(zsize, "rt");
 	REG_PROC(zget, "rt");
 	REG_PROC(zset, "wt");
@@ -239,7 +243,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 
 	REG_PROC(dump, "b");
 	REG_PROC(sync140, "b");
-	REG_PROC(info, "r");
+	REG_PROC(info, "rt");
 	REG_PROC(version, "r");
 	REG_PROC(dbsize, "rt");
 	// doing compaction in a reader thread, because we have only one
@@ -306,11 +310,15 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 				}
 				
 				std::string id = c->get_str("id");
+				int recv_timeout = c->get_num("recv_timeout");
 				
 				log_info("slaveof: %s:%d, type: %s", ip.c_str(), port, type.c_str());
 				Slave *slave = new Slave(ssdb, meta, ip.c_str(), port, is_mirror);
 				if(!id.empty()){
 					slave->set_id(id);
+				}
+				if(recv_timeout > 0){
+					slave->recv_timeout = recv_timeout;
 				}
 				slave->auth = c->get_str("auth");
 				slave->start();

@@ -1,3 +1,0 @@
-[submodule "leveldb_ee"]
-	path = leveldb_ee
-	url = git@github.com:basho/leveldb_ee

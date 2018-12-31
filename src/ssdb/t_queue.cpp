@@ -28,7 +28,7 @@ static int qget_uint64(leveldb::DB* db, const Bytes &name, uint64_t seq, uint64_
 		if(val.size() != sizeof(uint64_t)){
 			return -1;
 		}
-		*ret = *(uint64_t *)val.data();
+		memcpy(ret, val.data(), sizeof(uint64_t));
 	}
 	return s;
 }
@@ -42,6 +42,11 @@ static int qdel_one(SSDBImpl *ssdb, const Bytes &name, uint64_t seq){
 }
 
 static int qset_one(SSDBImpl *ssdb, const Bytes &name, uint64_t seq, const Bytes &item){
+	if(name.size() > SSDB_KEY_LEN_MAX ){
+		log_error("name too long! %s", hexmem(name.data(), name.size()).c_str());
+		return -1;
+	}
+
 	std::string key = encode_qitem_key(name, seq);
 	leveldb::Status s;
 
@@ -82,7 +87,9 @@ int64_t SSDBImpl::qsize(const Bytes &name){
 		if(val.size() != sizeof(uint64_t)){
 			return -1;
 		}
-		return *(int64_t *)val.data();
+		int64_t ret; 
+		memcpy(&ret, val.data(), sizeof(int64_t));
+		return ret;
 	}
 }
 

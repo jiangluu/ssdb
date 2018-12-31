@@ -37,15 +37,16 @@ SSDBImpl::~SSDBImpl(){
 
 SSDB* SSDB::open(const Options &opt, const std::string &dir){
 	SSDBImpl *ssdb = new SSDBImpl();
+	ssdb->options.max_file_size = 32 * 1048576; // leveldb 1.20
 	ssdb->options.create_if_missing = true;
 	ssdb->options.max_open_files = opt.max_open_files;
 	ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);
 	ssdb->options.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
 	ssdb->options.block_size = opt.block_size * 1024;
 	ssdb->options.write_buffer_size = opt.write_buffer_size * 1024 * 1024;
-	//ssdb->options.compaction_speed = opt.compaction_speed;
+	ssdb->options.compaction_speed = opt.compaction_speed;
 	if(opt.compression == "yes"){
-		ssdb->options.compression = leveldb::kLZ4Compression;
+		ssdb->options.compression = leveldb::kSnappyCompression;
 	}else{
 		ssdb->options.compression = leveldb::kNoCompression;
 	}
@@ -68,33 +69,35 @@ err:
 }
 
 int SSDBImpl::flushdb(){
-	Transaction trans(binlogs);
 	int ret = 0;
 	bool stop = false;
-	while(!stop){
-		leveldb::Iterator *it;
-		leveldb::ReadOptions iterate_options;
-		iterate_options.fill_cache = false;
-		leveldb::WriteOptions write_opts;
+	{
+		Transaction trans(binlogs);
+		while(!stop){
+			leveldb::Iterator *it;
+			leveldb::ReadOptions iterate_options;
+			iterate_options.fill_cache = false;
+			leveldb::WriteOptions write_opts;
 
-		it = ldb->NewIterator(iterate_options);
-		it->SeekToFirst();
-		for(int i=0; i<10000; i++){
-			if(!it->Valid()){
-				stop = true;
-				break;
+			it = ldb->NewIterator(iterate_options);
+			it->SeekToFirst();
+			for(int i=0; i<10000; i++){
+				if(!it->Valid()){
+					stop = true;
+					break;
+				}
+				//log_debug("%s", hexmem(it->key().data(), it->key().size()).c_str());
+				leveldb::Status s = ldb->Delete(write_opts, it->key());
+				if(!s.ok()){
+					log_error("del error: %s", s.ToString().c_str());
+					stop = true;
+					ret = -1;
+					break;
+				}
+				it->Next();
 			}
-			//log_debug("%s", hexmem(it->key().data(), it->key().size()).c_str());
-			leveldb::Status s = ldb->Delete(write_opts, it->key());
-			if(!s.ok()){
-				log_error("del error: %s", s.ToString().c_str());
-				stop = true;
-				ret = -1;
-				break;
-			}
-			it->Next();
+			delete it;
 		}
-		delete it;
 	}
 	binlogs->flush();
 	return ret;
